@@ -21,6 +21,7 @@ jobs:
           - fix/evaluation-graph-ownership
           - fix/evaluated-block-metadata
           - fix/preserve-legacy-class-ids
+          - fix/block-attribute-flags
           - hombee/integration
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -30,6 +31,20 @@ jobs:
       - name: Test the independent branch
         run: cargo test --lib --tests --features serde
       - name: Check WebAssembly compilation
+        env:
+          RUSTFLAGS: --cfg getrandom_backend="wasm_js"
         run: |
           rustup target add wasm32-unknown-unknown
-          cargo check --lib --target wasm32-unknown-unknown
+          mkdir -p .ci-wasm/src
+          cat > .ci-wasm/Cargo.toml <<'TOML'
+          [package]
+          name = "codec-wasm-consumer"
+          version = "0.0.0"
+          edition = "2021"
+          [dependencies]
+          opencadcodec = { path = ".." }
+          getrandom = { version = "0.3", features = ["wasm_js"] }
+          [workspace]
+          TOML
+          printf 'pub use opencadcodec::*;\n' > .ci-wasm/src/lib.rs
+          cargo check --manifest-path .ci-wasm/Cargo.toml --target wasm32-unknown-unknown
